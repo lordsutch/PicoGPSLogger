@@ -6,6 +6,9 @@ import math
 import struct
 import time
 
+# TODO - refactor this so the choice of interface (I2C/UART) is
+# separate from the choice of initialization code
+
 GPS = 'U-blox'
 # GPS = 'Allystar'
 
@@ -17,7 +20,7 @@ def dayofweek(year, month, day):
     elif x == 2:
         x = 14
         year -= 1
-    rem = year % 100    
+    rem = year % 100
     div = year // 100
     f = (y + int(13*(x + 1)/5.0) + rem + int(rem/4.0))
     fg = f + int(div/4.0) - 2 * div
@@ -187,15 +190,15 @@ class UBXI2CProtocol:
     def __init__(self, i2c, address=0x42):
         self.i2c = i2c
         self.address = address
-        
+
     def any(self):
         try:
             raw_avail = self.i2c.readfrom_mem(self.address, 0xFD, 2)
         except OSError:
             return None
-        
+
         return int.from_bytes(raw_avail, 'big')
-        
+
     def read(self, count=None):
         avail = self.any()
         if not avail:
@@ -209,7 +212,7 @@ class UBXI2CProtocol:
 #             data += self.i2c.readfrom_mem(self.address, 0xFF, 1)
 #             avail -= 1
         return data
-    
+
     def write(self, data):
         try:
             self.i2c.writeto_mem(self.address, 0xFF, data)
@@ -226,14 +229,14 @@ def init_allystar(gps_io, header=b'\xF1\xD9'):
         (0x03, 0x00),  # xxGRS - disable
         (0x05, 0x01),  # xxRMC
         (0x03, 0x01),  # xxGSV
-        (0x0D, 0x01),  # xxGNS 
+        (0x0D, 0x01),  # xxGNS
         (0x07, 0x01),  # xxGST
         (0x08, 0x00),  # xxZDA - suppress, only needed for century
         (0x05, 0x01),  # xxVTG
         (0x0E, 0x01),  # xxTHS
         (0x09, 0x00),  # xxGBS - disable
         )
-    
+
     for nmea_msg, count in messages:
         msg = struct.pack('<BBBBB', 0x06, 0x01, 0xF0, nmea_msg, count)
         send_ubx_msg(gps_io, msg, header)
@@ -255,13 +258,13 @@ def init_allystar(gps_io, header=b'\xF1\xD9'):
     #     payload += struct.pack('<BB', sat, 1)
     # for sat in (120, 134, 126, 136, 127, 128, 129, 137, 140, 125):
     #     payload += struct.pack('<BB', sat, 0)
-        
+
     # payload = b'\x06\x0E'
     # send_ubx_msg(gps_io, payload, header)
 
     # send_ubx_msg(gps_io, b'\x01\x21', header)
 
-    # send_ubx_msg(gps_io, b'\x0A\x04', header)    
+    # send_ubx_msg(gps_io, b'\x0A\x04', header)
     # Request NAV-TIMEUTC
     send_ubx_msg(gps_io, b'\x01\x21', header)
 
@@ -270,7 +273,7 @@ def init_ublox(gps_io, header=b'\xB5\x62'):
     # Reset IMU - UBX-CFG-ESFALG
     payload = struct.pack('<IIhh', 1 << 8, 0, 0, 0)
     send_ubx_msg(gps_io, payload, header)
-    
+
     # Enable Galileo
 #     cfg = (
 #         (0x00, 0x08, 0x10, 0x00, 0x00010001),
@@ -296,7 +299,7 @@ def init_ublox(gps_io, header=b'\xB5\x62'):
     payload = struct.pack('<BBBBBB', 0x06, 0x3E, 0x00, 0x00, 0xFF, len(cfg))
     for gnss in cfg:
         payload += struct.pack('<BBBBI', *gnss)
-    
+
 #     payload = struct.pack('<BB', 0x06, 0x3E)
     send_ubx_msg(gps_io, payload, header)
 
@@ -306,12 +309,12 @@ def init_ublox(gps_io, header=b'\xB5\x62'):
                           0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
 #    payload = struct.pack('<BB', 0x06, 0x17)
     send_ubx_msg(gps_io, payload, header)
-    
+
     # CFG-ITFM - jamming/spoofing
 #     payload = struct.pack('<BBII', 0x06, 0x39, config, config2)
     payload = struct.pack('<BB', 0x06, 0x39)
     send_ubx_msg(gps_io, payload, header)
-    
+
     # CFG-SBAS
     prns = (131, 133, 135, 138)
     scanmode1 = scanmode2 = 0x00
@@ -320,7 +323,7 @@ def init_ublox(gps_io, header=b'\xB5\x62'):
             scanmode1 |= 1 << (prn-120)
         elif 152 <= prn <= 158:
             scanmode2 |= 1 << (prn-152)
-    
+
     payload = struct.pack('<BBBBBBI', 0x06, 0x16, 0x01, 0x03, 0x03, scanmode2, scanmode1)
     send_ubx_msg(gps_io, payload, header)
 
@@ -328,7 +331,7 @@ def init_ublox(gps_io, header=b'\xB5\x62'):
         (0x04, 0x01),  # xxRMC
         (0x02, 0x01),  # xxGSA
         (0x03, 0x01),  # xxGSV
-        (0x0D, 0x01),  # xxGNS 
+        (0x0D, 0x01),  # xxGNS
         (0x07, 0x01),  # xxGST
         (0x08, 0x00),  # xxZDA - suppress, only needed for century
         (0x01, 0x00),  # xxGLL - suppress, nothing here not in xxRMC
@@ -337,13 +340,13 @@ def init_ublox(gps_io, header=b'\xB5\x62'):
         (0x09, 0x00),  # xxGBS - disable
         (0x06, 0x00),  # xxGRS - disable
         )
-        
+
     for (nmea_msg, freq) in messages: # (0x07, 0x08):
         msg = struct.pack('<BBBBB', 0x6, 0x1, 0xF0, nmea_msg, freq)
         send_ubx_msg(gps_io, msg, header)
 
     # Request NAV-TIMEUTC
-    send_ubx_msg(gps_io, b'\x01\x21', header)    
+    send_ubx_msg(gps_io, b'\x01\x21', header)
     return
 
 
@@ -359,10 +362,10 @@ def setup_gps(i2c):
             if result:
                 break
             time.sleep(0.25)
-            
+
         gps_io = UBXI2CProtocol(i2c, 0x42)
-        init_ublox(gps_io)    
-    
+        init_ublox(gps_io)
+
     return (gps_io, header)
 
 
@@ -376,7 +379,7 @@ def set_date(message, rtc, ts):
 
 def format_binary_message(msg):
     payload = ' '.join(f'{c:02X}' for c in msg[3])
-    return f'{msg[0]:02X} {msg[1]:02X} {msg[2]:04X} {payload} *{msg[4]:02X} {msg[5]:02X}' 
+    return f'{msg[0]:02X} {msg[1]:02X} {msg[2]:04X} {payload} *{msg[4]:02X} {msg[5]:02X}'
 
 
 def mainloop(output=None, i2c=None, display=None):
@@ -386,17 +389,17 @@ def mainloop(output=None, i2c=None, display=None):
     if not i2c:
         i2c = I2C(0, scl=Pin(17), sda=Pin(16))
     gps_io, header = setup_gps(i2c)
-    
+
     nmea_parser = MicropyGPS(location_formatting='dd')
     parser = UBXParser(header)
 
     #print(gps_io)
     last_output = (-1, -1, -1)
     last_display = time.time()
-    
+
     if not display:
         display = SSD1306_I2C(128, 32, i2c)
-    
+
     while True:
         count = gps_io.any()
         if count:
@@ -431,15 +434,15 @@ def mainloop(output=None, i2c=None, display=None):
 #             print(msg)
             if output:
                 print(msg, file=output)
-                
+
         day, month, year = nmea_parser.date
-        h, m, s = nmea_parser.timestamp        
-        
+        h, m, s = nmea_parser.timestamp
+
         new_timestamp = nmea_parser.timestamp
         if nmea_parser.timestamp != last_output or (time.time() - last_display) >= 2:
             if output:
                 output.flush()
-            
+
             systime = time.gmtime()
             if (not time_set or systime[0:3] != (year, month, day)) and day > 0:
                 ts = (year, month, day, h, m, int(s), 0, 0)
@@ -454,9 +457,9 @@ def mainloop(output=None, i2c=None, display=None):
             heading = nmea_parser.compass_direction()
 #             sats = nmea_parser.satellites_visible()
             timestr = nmea_parser.time_string()
-            
+
             display.fill(0)
-            if nmea_parser.fix_stat >= 1:            
+            if nmea_parser.fix_stat >= 1:
                 display.text(f'{lat:8.4f}', 0, 0)
                 display.text(latHem, 65, 0)
                 display.text(f'{lng:8.4f}', 0, 8)
