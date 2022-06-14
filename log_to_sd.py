@@ -30,7 +30,7 @@ def main():
             time.sleep(1)
             continue
         break
-    
+
     vfs = os.VfsFat(sd)
 
     # Mount filesystem
@@ -42,7 +42,7 @@ def main():
             st = os.stat('/sd/'+outfilename)
         except OSError:
             break
-    
+
     print('Logging to', outfilename)
 
     with open(f'/sd/{outfilename}', 'wt') as f:
