@@ -271,7 +271,7 @@ def init_allystar(gps_io, header=b'\xF1\xD9'):
 
 def init_ublox(gps_io, header=b'\xB5\x62'):
     # Reset IMU - UBX-CFG-ESFALG
-    payload = struct.pack('<IIhh', 1 << 8, 0, 0, 0)
+    payload = struct.pack('<BBIIhh', 0x06, 0x56, 1 << 8, 0, 0, 0)
     send_ubx_msg(gps_io, payload, header)
 
     # Enable Galileo
